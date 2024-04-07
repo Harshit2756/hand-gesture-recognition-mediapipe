@@ -8,9 +8,10 @@ import cv2 as cv
 import numpy as np
 import mediapipe as mp
 
-from collections import Counter
-from collections import deque
 from utils import CvFpsCalc
+from collections import deque
+from collections import Counter
+from playsound import playsound
 from model import KeyPointClassifier
 from model import PointHistoryClassifier
 
@@ -143,7 +144,7 @@ def main():
         #/ image.flags.writeable is used to make the image writable i.e the image can be modified.
         image.flags.writeable = True
 
-        #here results.multi_hand_landmarks is used to check if the hand is detected or not.
+        #/ here results.multi_hand_landmarks is used to check if the hand is detected or not.
         if results.multi_hand_landmarks is not None:
             for hand_landmarks, handedness in zip(results.multi_hand_landmarks,results.multi_handedness):
                 # Bounding box calculation
@@ -153,13 +154,12 @@ def main():
 
                 print(landmark_list[0])
 
-                # Conversion to relative coordinates / normalized coordinates
+                #/ Conversion to relative coordinates / normalized coordinates
                 pre_processed_landmark_list = pre_process_landmark(landmark_list)
                 # ? Point history logging
                 pre_processed_point_history_list = pre_process_point_history(debug_image, point_history)
                 #? Write to the dataset file
-                logging_csv(number, mode, pre_processed_landmark_list,
-                            pre_processed_point_history_list)
+                logging_csv(number, mode, pre_processed_landmark_list, pre_processed_point_history_list)
 
                 # Hand sign classification
                 hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
@@ -173,8 +173,7 @@ def main():
                 finger_gesture_id = 0
                 point_history_len = len(pre_processed_point_history_list)
                 if point_history_len == (history_length * 2):
-                    finger_gesture_id = point_history_classifier(
-                        pre_processed_point_history_list)
+                    finger_gesture_id = point_history_classifier(pre_processed_point_history_list)
 
                 # Calculates the gesture IDs in the latest detection
                 finger_gesture_history.append(finger_gesture_id)
@@ -190,20 +189,34 @@ def main():
                     debug_image,
                     brect,
                     handedness,
-                    keypoint_classifier_labels[hand_sign_id],
+                    keypoint_classifier_labels[hand_sign_id], # | / it has hand sign id
                     point_history_classifier_labels[most_common_fg_id[0][0]],
                 )
+                
+                #/ The play_audio[label(the label of the audio file to be played)] function is used to play the audio file which has parameters
+                play_audio(keypoint_classifier_labels[hand_sign_id])
+
         else:
             point_history.append([0, 0])
 
-        # debug_image = draw_point_history(debug_image, point_history)
+        debug_image = draw_point_history(debug_image, point_history)
         debug_image = draw_info(debug_image, fps, mode, number)
 
-        # Screen reflection #############################################################
+        # Screen reflection 
         cv.imshow('Hand Gesture Recognition', debug_image)
 
     cap.release()
     cv.destroyAllWindows()
+
+def play_audio(label):
+    try:
+        # Assuming you have audio files saved with names corresponding to the labels
+        audio_file = f"audio_files/{label}.mp3"
+
+        # Play audio
+        playsound(audio_file)
+    except Exception as e:
+        print(f"Error playing audio: {e}")
 
 
 # / This function is used to return the ascii value of the key pressed or the mode selected.
@@ -255,7 +268,7 @@ def calc_landmark_list(image, landmarks):
 
     return landmark_point
 
-
+# / This function is used to pre-process the landmarks i.e convert the landmarks to relative coordinates, convert the landmarks to a one-dimensional list, and normalize the landmarks.
 def pre_process_landmark(landmark_list):
     temp_landmark_list = copy.deepcopy(landmark_list)
 
@@ -281,7 +294,6 @@ def pre_process_landmark(landmark_list):
     temp_landmark_list = list(map(normalize_, temp_landmark_list))
 
     return temp_landmark_list
-
 
 #? / This function is used to pre-process the point history.
 def pre_process_point_history(image, point_history):
@@ -544,12 +556,12 @@ def draw_info_text(image, brect, handedness, hand_sign_text,
     return image
 
 # / This function is used to draw the point history on the image.
-# def draw_point_history(image, point_history):
-#     for index, point in enumerate(point_history):
-#         if point[0] != 0 and point[1] != 0:
-#             cv.circle(image, (point[0], point[1]), 1 + int(index / 2),
-#                       (152, 251, 152), 2)
-#     return image
+def draw_point_history(image, point_history):
+    for index, point in enumerate(point_history):
+        if point[0] != 0 and point[1] != 0:
+            cv.circle(image, (point[0], point[1]), 1 + int(index / 2),
+                      (152, 251, 152), 2)
+    return image
 
 # / This function is used to draw the information on the image.
 def draw_info(image, fps, mode, number):
