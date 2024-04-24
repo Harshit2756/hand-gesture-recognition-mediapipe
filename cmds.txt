@@ -1,0 +1,31 @@
+ssh Harshit@SignLangugae
+cd 'Final year project'
+source myenv/bin/activate
+
+venv\Scripts\activate
+pip list
+pip freeze > req.txt
+
+
+absl-py==2.1.0
+attrs==23.2.0
+cffi==1.16.0
+contourpy==1.1.1
+cycler==0.12.1
+flatbuffers==20181003210633
+fonttools==4.51.0
+importlib_resources==6.4.0
+kiwisolver==1.4.5
+matplotlib==3.7.5
+mediapipe==0.10.9
+numpy==1.24.4
+opencv-contrib-python==4.9.0.80
+packaging==24.0
+pillow==10.3.0
+protobuf==3.20.3
+pycparser==2.22
+pyparsing==3.1.2
+python-dateutil==2.9.0.post0
+six==1.16.0
+sounddevice==0.4.6
+zipp==3.18.1

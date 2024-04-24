@@ -1,33 +1,34 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import csv
-import copy
 import argparse
+import copy
+import csv
 import itertools
-import cv2 as cv
-import numpy as np
-import mediapipe as mp
-
-from utils import CvFpsCalc
-from collections import deque
+import time
 from collections import Counter
-from playsound import playsound
+from collections import deque
+import pygame
+import cv2 as cv
+import mediapipe as mp
+import numpy as np
+# from playsound import playsound
 from model import KeyPointClassifier
 from model import PointHistoryClassifier
+from utils import CvFpsCalc
 
 
-# / THis functions are used to get the arguments from the command line which is used to set the camera device, width, height, and other parameters.
+# / These functions are used to get the arguments from the command line which is used to set the camera device, width, height, and other parameters.
 def get_args():
     parser = argparse.ArgumentParser()
-#/ add_argument is used to add the arguments to the parser object.
+    # / add_argument is used to add the arguments to the parser object.
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--width", help='cap width', type=int, default=960)
     parser.add_argument("--height", help='cap height', type=int, default=540)
 
     # / here we are adding the argument to use the static image mode. 
-    #/ Static image mode is used to detect the hand in the static image (image without any movement).
-    #/ action parameter is used to set the action to be performed when the argument is passed. 
-    #/ here store_true is used to store the default value as True.
+    # / Static image mode is used to detect the hand in the static image (image without any movement).
+    # / action parameter is used to set the action to be performed when the argument is passed. 
+    # / here store_true is used to store the default value as True.
     parser.add_argument('--use_static_image_mode', action='store_true')
 
     # / min_detection_confidence tells if the confidence value is set to 0.7 then the hand will be detected only if the confidence value is greater than 0.7. 
@@ -35,7 +36,7 @@ def get_args():
                         help='min_detection_confidence',
                         type=float,
                         default=0.7)
-    
+
     # / min_tracking_confidence tells if the confidence value is set to 0.5 then the hand will be tracked only if the confidence value is greater than 0.5.
     parser.add_argument("--min_tracking_confidence",
                         help='min_tracking_confidence',
@@ -49,104 +50,107 @@ def get_args():
 
 
 def main():
-    #* Argument parsing
+    # * Argument parsing
     args = get_args()
+    # Initialize pygame mixer
+    pygame.mixer.init()
 
-    #* Camera preparation
-    #/ VideoCapture object is used to capture the video from the camera. 
-    #/ The device parameter is used to set the camera device. 
-    #/ The width and height parameters are used to set the width and height of the captured video.
+    # * Camera preparation
+    # / VideoCapture object is used to capture the video from the camera. 
+    # / The device parameter is used to set the camera device. 
+    # / The width and height parameters are used to set the width and height of the captured video.
     cap = cv.VideoCapture(args.device)
     cap.set(cv.CAP_PROP_FRAME_WIDTH, args.width)
     cap.set(cv.CAP_PROP_FRAME_HEIGHT, args.height)
 
-    #* Model load
-    #/ The Hand model is loaded using the mediapipe library.
+    # * Model load
+    # / The Hand model is loaded using the mediapipe library.
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(
-        static_image_mode=args.use_static_image_mode, # False
+        static_image_mode=args.use_static_image_mode,  # False
         max_num_hands=1,
-        min_detection_confidence=args.min_detection_confidence,# 0.7
-        min_tracking_confidence=args.min_tracking_confidence, # 0.5
+        min_detection_confidence=args.min_detection_confidence,  # 0.7
+        min_tracking_confidence=args.min_tracking_confidence,  # 0.5
     )
 
-
-    #/ KeyPointClassifier is a class that is used to classify the hand gestures. 
+    # / KeyPointClassifier is a class that is used to classify the hand gestures. 
     keypoint_classifier = KeyPointClassifier()
 
-    #/ PointHistoryClassifier is a class that is used to classify the point history.
+    # / PointHistoryClassifier is a class that is used to classify the point history.
     point_history_classifier = PointHistoryClassifier()
 
-    #* Read labels 
+    # * Read labels 
     with open('model/keypoint_classifier/keypoint_classifier_label.csv', encoding='utf-8-sig') as csvFile:
         keypoint_classifier_labels = csv.reader(csvFile)
         keypoint_classifier_labels = [
             row[0] for row in keypoint_classifier_labels
         ]
-    with open('model/point_history_classifier/point_history_classifier_label.csv',encoding='utf-8-sig') as f:
+    with open('model/point_history_classifier/point_history_classifier_label.csv', encoding='utf-8-sig') as f:
         point_history_classifier_labels = csv.reader(f)
         point_history_classifier_labels = [
             row[0] for row in point_history_classifier_labels
         ]
 
-    #* FPS Measurement
-    #/ CvFpsCalc is a class that is used to calculate the frames per second.
-    #/ buffer_len te
+    # * FPS Measurement
+    # / CvFpsCalc is a class that is used to calculate the frames per second.
+    # / buffer_len te
     cvFpsCalc = CvFpsCalc(buffer_len=10)
 
-    #* Coordinate history
-    #? / here we are using the deque class to store the history of the points, 16 means the length of the history i.e the last 16 points are stored in the history.
+    # * Coordinate history
+    # ? / here we are using the deque class to store the history of the points, 16 means the length of the history i.e. the last 16 points are stored in the history.
     history_length = 16
     point_history = deque(maxlen=history_length)
 
-    #* Finger gesture history
-    #? / 
+    # * Finger gesture history
+    # ? / 
     finger_gesture_history = deque(maxlen=history_length)
 
     # mode used to set the mode of the application. such as logging keypoint, logging point history, etc.
     mode = 0
+    previous_hand_sign_id = 0
+    previous_hand_sign_id_time = time.time()
 
-    #/ The while loop is used to capture the video from the camera and process the video frame by frame. 
+    # / The while loop is used to capture the video from the camera and process the video frame by frame. 
     # / this is the main loop of the application.
     while True:
         fps = cvFpsCalc.get()
 
-        #~ Key input
+        # ~ Key input
         # /waitKey is used to wait for the key press event. 
         key = cv.waitKey(10)
-        #! Process Key (ESC: end) 
+        # ! Process Key (ESC: end) 
         if key == 27:  # ESC
             break
         number, mode = select_mode(key, mode)
 
-        #~ Camera capture 
-        #/ The read() function is used to read the video frame from the camera. and return the frame (image) and bool(ret)
-        #/ image here is the frame captured from the camera. and ret is the boolean value that tells if the frame is captured or not. 
+        # ~ Camera capture 
+        # / The read() function is used to read the video frame from the camera. and return the frame (image) and bool(ret)
+        # / image here is the frame captured from the camera. and ret is the boolean value that tells if the frame is captured or not. 
         ret, image = cap.read()
         if not ret:
             break
-        #~ Image processing
-        #/ The flip() function is used to flip the image horizontally() or vertically 
-        #/ here we are flipping the image horizontally by passing the value 1. to filp the image vertically we can pass 0. and to flip the image horizontally and vertically we can pass -1.
+        # ~ Image processing
+        # / The flip() function is used to flip the image horizontally() or vertically 
+        # / here we are flipping the image horizontally by passing the value 1. to filp the image vertically we can pass 0. and to flip the image horizontally and vertically we can pass -1.
         image = cv.flip(image, 1)  # Mirror display
-        #/ deepcopy is used to create a deep copy of the image. 
+        # / deepcopy is used to create a deep copy of the image. 
         debug_image = copy.deepcopy(image)
 
-        #~ Detection implementation 
-        #/ cvtColor is used to convert the image from one color space to another color space.
-        #/ here we are converting the image from BGR color space to RGB color space as the mediapipe library uses the RGB color space and the OpenCV uses the BGR color space.
+        # ~ Detection implementation 
+        # / cvtColor is used to convert the image from one color space to another color space.
+        # / here we are converting the image from BGR color space to RGB color space as the mediapipe library uses the RGB color space and the OpenCV uses the BGR color space.
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
-        #/ image.flags.writeable is used to check if the image is writable i.e the image can be modified or not.
+        # / image.flags.writeable is used to check if the image is writable i.e the image can be modified or not.
         image.flags.writeable = False
-        #/ The process() function is used to process the image and return the results such as the landmarks, handedness, etc.
+        # / The process() function is used to process the image and return the results such as the landmarks, handedness, etc.
         results = hands.process(image)
-        #/ image.flags.writeable is used to make the image writable i.e the image can be modified.
+        # / image.flags.writeable is used to make the image writable i.e the image can be modified.
         image.flags.writeable = True
 
-        #/ here results.multi_hand_landmarks is used to check if the hand is detected or not.
+        # / here results.multi_hand_landmarks is used to check if the hand is detected or not.
         if results.multi_hand_landmarks is not None:
-            for hand_landmarks, handedness in zip(results.multi_hand_landmarks,results.multi_handedness):
+            for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
                 # Bounding box calculation
                 brect = calc_bounding_rect(debug_image, hand_landmarks)
                 # Landmark calculation
@@ -154,11 +158,11 @@ def main():
 
                 print(landmark_list[0])
 
-                #/ Conversion to relative coordinates / normalized coordinates
+                # / Conversion to relative coordinates / normalized coordinates
                 pre_processed_landmark_list = pre_process_landmark(landmark_list)
                 # ? Point history logging
                 pre_processed_point_history_list = pre_process_point_history(debug_image, point_history)
-                #? Write to the dataset file
+                # ? Write to the dataset file
                 logging_csv(number, mode, pre_processed_landmark_list, pre_processed_point_history_list)
 
                 # Hand sign classification
@@ -179,25 +183,37 @@ def main():
                 finger_gesture_history.append(finger_gesture_id)
                 most_common_fg_id = Counter(finger_gesture_history).most_common()
 
-                #/ Drawing the bounding box, landmarks, and information on the image.
-                #/ The draw_bounding_rect[use_brect(means if the bounding box is to be drawn or not), image(the image on which the bounding box is to be drawn), brect(the bounding box coordinates)] function is used to draw the bounding box on the image which has parameters 
-                debug_image = draw_bounding_rect(True, debug_image, brect)
-                #/ The draw_landmarks[image(the image on which the landmarks are to be drawn), landmark_point(the landmarks to be drawn)] function is used to draw the landmarks on the image which has parameters
-                debug_image = draw_landmarks(debug_image, landmark_list)
-                #/ The draw_info_text[image(the image on which the information is to be drawn), brect(the bounding box coordinates), handedness(the handedness i.e left or right), hand_sign_text(the hand sign text), finger_gesture_text(the finger gesture text)] function is used to draw the information text on the image which has parameters
+                # / Drawing the bounding box, landmarks, and information on the image.
+                # / draw the rectangle on the image
+                # debug_image = draw_bounding_rect(True, debug_image, brect)
+                # / Draw the hand line on the image
+                # debug_image = draw_landmarks(debug_image, landmark_list)
+                # / The draw_info_text[image(the image on which the information is to be drawn), brect(the bounding box coordinates), handedness(the handedness i.e left or right), hand_sign_text(the hand sign text), finger_gesture_text(the finger gesture text)] function is used to draw the information text on the image which has parameters
                 debug_image = draw_info_text(
                     debug_image,
                     brect,
                     handedness,
-                    keypoint_classifier_labels[hand_sign_id], # | / it has hand sign id
+                    keypoint_classifier_labels[hand_sign_id],  # | / it has hand sign id
                     point_history_classifier_labels[most_common_fg_id[0][0]],
                 )
-                
-                #/ The play_audio[label(the label of the audio file to be played)] function is used to play the audio file which has parameters
-                play_audio(keypoint_classifier_labels[hand_sign_id])
 
+                # / The play_audio[label(the label of the audio file to be played)] function is used to play the audio file which has parameters
+                if hand_sign_id != previous_hand_sign_id:
+                    previous_hand_sign_id = hand_sign_id
+                    previous_hand_sign_id_time = time.time()
+                else:
+                    if time.time() - previous_hand_sign_id_time > 5.0:
+                        draw_info_detected_text(debug_image, keypoint_classifier_labels[hand_sign_id])
+                        play_audio(keypoint_classifier_labels[hand_sign_id])
+            # draw_info_detected_text(debug_image, keypoint_classifier_labels[hand_sign_id])
         else:
             point_history.append([0, 0])
+
+        try:
+            if pygame.mixer.music.get_busy():
+                draw_info_detected_text(debug_image, 'hello')
+        except Exception as e:
+            print(f"Error playing audio: {e}")
 
         debug_image = draw_point_history(debug_image, point_history)
         debug_image = draw_info(debug_image, fps, mode, number)
@@ -208,13 +224,21 @@ def main():
     cap.release()
     cv.destroyAllWindows()
 
+
 def play_audio(label):
     try:
         # Assuming you have audio files saved with names corresponding to the labels
         audio_file = f"audio_files/{label}.mp3"
 
-        # Play audio
-        playsound(audio_file)
+        # Load and play audio
+        pygame.mixer.music.load(audio_file)
+        pygame.mixer.music.play()
+        # pygame.time.Clock()
+        # draw_info_detected_text(debug_image, label)
+        # pygame.time.wait(3000)    
+        # while pygame.mixer.music.get_busy():
+        #     pygame.event.poll()
+        #     pygame.time.Clock().tick(10)
     except Exception as e:
         print(f"Error playing audio: {e}")
 
@@ -227,9 +251,9 @@ def select_mode(key, mode):
     if 97 <= key <= 122:  # a ~ z
         number = key - 87  #
     if key == 92:  # \
-        mode = 0   # normal detection mode
+        mode = 0  # normal detection mode
     if key == 47:  # /
-        mode = 1 # logging point mode
+        mode = 1  # logging point mode
     # if key == 46:  # .
     #     mode = 2 # logging point history mode
     return number, mode
@@ -268,6 +292,7 @@ def calc_landmark_list(image, landmarks):
 
     return landmark_point
 
+
 # / This function is used to pre-process the landmarks i.e convert the landmarks to relative coordinates, convert the landmarks to a one-dimensional list, and normalize the landmarks.
 def pre_process_landmark(landmark_list):
     temp_landmark_list = copy.deepcopy(landmark_list)
@@ -295,7 +320,8 @@ def pre_process_landmark(landmark_list):
 
     return temp_landmark_list
 
-#? / This function is used to pre-process the point history.
+
+# ? / This function is used to pre-process the point history.
 def pre_process_point_history(image, point_history):
     image_width, image_height = image.shape[1], image.shape[0]
 
@@ -338,193 +364,6 @@ def logging_csv(number, mode, landmark_list, point_history_list,
     return
 
 
-def draw_landmarks(image, landmark_point):
-    if len(landmark_point) > 0:
-        # Thumb
-        cv.line(image, tuple(landmark_point[2]), tuple(landmark_point[3]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[2]), tuple(landmark_point[3]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[3]), tuple(landmark_point[4]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[3]), tuple(landmark_point[4]),
-                (255, 255, 255), 2)
-
-        # Index finger
-        cv.line(image, tuple(landmark_point[5]), tuple(landmark_point[6]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[5]), tuple(landmark_point[6]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[6]), tuple(landmark_point[7]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[6]), tuple(landmark_point[7]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[7]), tuple(landmark_point[8]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[7]), tuple(landmark_point[8]),
-                (255, 255, 255), 2)
-
-        # Middle finger
-        cv.line(image, tuple(landmark_point[9]), tuple(landmark_point[10]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[9]), tuple(landmark_point[10]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[10]), tuple(landmark_point[11]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[10]), tuple(landmark_point[11]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[11]), tuple(landmark_point[12]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[11]), tuple(landmark_point[12]),
-                (255, 255, 255), 2)
-
-        # Ring finger
-        cv.line(image, tuple(landmark_point[13]), tuple(landmark_point[14]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[13]), tuple(landmark_point[14]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[14]), tuple(landmark_point[15]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[14]), tuple(landmark_point[15]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[15]), tuple(landmark_point[16]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[15]), tuple(landmark_point[16]),
-                (255, 255, 255), 2)
-
-        # Little finger
-        cv.line(image, tuple(landmark_point[17]), tuple(landmark_point[18]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[17]), tuple(landmark_point[18]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[18]), tuple(landmark_point[19]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[18]), tuple(landmark_point[19]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[19]), tuple(landmark_point[20]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[19]), tuple(landmark_point[20]),
-                (255, 255, 255), 2)
-
-        # Palm
-        cv.line(image, tuple(landmark_point[0]), tuple(landmark_point[1]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[0]), tuple(landmark_point[1]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[1]), tuple(landmark_point[2]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[1]), tuple(landmark_point[2]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[2]), tuple(landmark_point[5]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[2]), tuple(landmark_point[5]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[5]), tuple(landmark_point[9]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[5]), tuple(landmark_point[9]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[9]), tuple(landmark_point[13]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[9]), tuple(landmark_point[13]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[13]), tuple(landmark_point[17]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[13]), tuple(landmark_point[17]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[17]), tuple(landmark_point[0]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[17]), tuple(landmark_point[0]),
-                (255, 255, 255), 2)
-
-    # Key Points
-    for index, landmark in enumerate(landmark_point):
-        if index == 0:  # 手首1
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 1:  # 手首2
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 2:  # 親指：付け根
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 3:  # 親指：第1関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 4:  # 親指：指先
-            cv.circle(image, (landmark[0], landmark[1]), 8, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 8, (0, 0, 0), 1)
-        if index == 5:  # 人差指：付け根
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 6:  # 人差指：第2関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 7:  # 人差指：第1関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 8:  # 人差指：指先
-            cv.circle(image, (landmark[0], landmark[1]), 8, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 8, (0, 0, 0), 1)
-        if index == 9:  # 中指：付け根
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 10:  # 中指：第2関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 11:  # 中指：第1関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 12:  # 中指：指先
-            cv.circle(image, (landmark[0], landmark[1]), 8, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 8, (0, 0, 0), 1)
-        if index == 13:  # 薬指：付け根
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 14:  # 薬指：第2関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 15:  # 薬指：第1関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 16:  # 薬指：指先
-            cv.circle(image, (landmark[0], landmark[1]), 8, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 8, (0, 0, 0), 1)
-        if index == 17:  # 小指：付け根
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 18:  # 小指：第2関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 19:  # 小指：第1関節
-            cv.circle(image, (landmark[0], landmark[1]), 5, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 5, (0, 0, 0), 1)
-        if index == 20:  # 小指：指先
-            cv.circle(image, (landmark[0], landmark[1]), 8, (255, 255, 255),
-                      -1)
-            cv.circle(image, (landmark[0], landmark[1]), 8, (0, 0, 0), 1)
-
-    return image
-
 
 def draw_bounding_rect(use_brect, image, brect):
     if use_brect:
@@ -534,9 +373,11 @@ def draw_bounding_rect(use_brect, image, brect):
 
     return image
 
+
 # / This function is used to draw the information text on the image i.e the detected 
-def draw_info_text(image, brect, handedness, hand_sign_text,
-                   finger_gesture_text):
+def draw_info_text(image, brect, handedness, hand_sign_text, finger_gesture_text):
+    # / The rectangle() function is used to draw the rectangle on the image.
+    # / The parameters of the rectangle() function are image(the image on which the rectangle is to be drawn), pt1(the top-left corner of the rectangle), pt2(the bottom-right corner of the rectangle), color(the color of the rectangle), thickness(the thickness of the rectangle).
     cv.rectangle(image, (brect[0], brect[1]), (brect[2], brect[1] - 22),
                  (0, 0, 0), -1)
 
@@ -549,11 +390,22 @@ def draw_info_text(image, brect, handedness, hand_sign_text,
     if finger_gesture_text != "":
         cv.putText(image, "Finger Gesture: h" + finger_gesture_text, (10, 60),
                    cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
+        # / The putText() function is used to draw the text on the image.
+        # / The parameters of the putText() function are image(the image on which the text is to be drawn), text(the text to be drawn), org(the origin of the text), fontFace(the font of the text), fontScale(the font scale of the text), color(the color of the text), thickness(the thickness of the text), lineType(the type of the line of the text).
         cv.putText(image, "Finger Gesture: d" + finger_gesture_text, (10, 60),
                    cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2,
                    cv.LINE_AA)
+    return image
+
+
+def draw_info_detected_text(image, detected_text):
+    if detected_text != "":
+        cv.putText(image, "Detected Text:" + detected_text, (10, 100),
+                   cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4,
+                   cv.LINE_AA)
 
     return image
+
 
 # / This function is used to draw the point history on the image.
 def draw_point_history(image, point_history):
@@ -562,6 +414,7 @@ def draw_point_history(image, point_history):
             cv.circle(image, (point[0], point[1]), 1 + int(index / 2),
                       (152, 251, 152), 2)
     return image
+
 
 # / This function is used to draw the information on the image.
 def draw_info(image, fps, mode, number):
