@@ -12,9 +12,8 @@ python app.py
 
 // Train 
 train/Scripts/activate
-python app_train.py
 pip install ipykernel
-ipython kernel install --user --name=venv
+ipython kernel install --user --name=train
 jupyter notebook
 jupyter-kernelspec uninstall venv
 
@@ -33,8 +32,6 @@ iwconfig
 
 // To check ip address
 ifconfig
-
-
 
 absl-py==2.1.0
 attrs==23.2.0
