@@ -2,9 +2,38 @@ ssh Harshit@SignLangugae
 cd 'Final year project'
 source myenv/bin/activate
 
+// raspberry
+cd 'Final Project'
+source venv/bin/activate
+
+// Windows 
 venv\Scripts\activate
+python app.py
+
+// Train 
+train/Scripts/activate
+python app_train.py
+pip install ipykernel
+ipython kernel install --user --name=venv
+jupyter notebook
+jupyter-kernelspec uninstall venv
+
+// 
 pip list
 pip freeze > req.txt
+// TO add new wifi network
+
+sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
+network={
+   ssid="Harshit"
+    psk="password"}
+
+// wifi connected to raspberry pi
+iwconfig 
+
+// To check ip address
+ifconfig
+
 
 
 absl-py==2.1.0
@@ -29,3 +58,81 @@ python-dateutil==2.9.0.post0
 six==1.16.0
 sounddevice==0.4.6
 zipp==3.18.1
+
+
+Voice 
+afrikaans
+aragonese
+bulgarian
+bengali
+bosnian
+catalan
+czech
+welsh
+danish
+german
+greek
+default
+english
+en-scottish
+english-north
+english_rp
+english_wmids
+english-us
+en-westindies
+esperanto
+spanish
+spanish-latin-am
+estonian
+basque-test
+Persian+English-UK
+Persian+English-US
+persian-pinglish
+finnish
+french-Belgium
+french
+irish-gaeilge
+greek-ancient
+gujarati-test
+hindi
+croatian
+hungarian
+armenian
+armenian-west
+interlingua
+indonesian
+icelandic
+italian
+lojban
+georgian
+kannada
+kurdish
+latin
+lingua_franca_nova
+lithuanian
+latvian
+macedonian
+malayalam
+malay
+nepali
+dutch
+norwegian
+punjabi
+polish
+brazil
+portugal
+romanian
+russian
+slovak
+albanian
+serbian
+swedish
+swahili-test
+tamil
+telugu-test
+turkish
+vietnam
+vietnam_hue
+vietnam_sgn
+Mandarin
+cantonese

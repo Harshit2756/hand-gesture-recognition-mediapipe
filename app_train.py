@@ -37,7 +37,6 @@ def get_args():
 
     return args
 
-
 def main():
     # Argument parsing #################################################################
     args = get_args()
@@ -61,7 +60,7 @@ def main():
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(
         static_image_mode=use_static_image_mode,
-        max_num_hands=1,
+        max_num_hands=2,
         min_detection_confidence=min_detection_confidence,
         min_tracking_confidence=min_tracking_confidence,
     )
@@ -97,7 +96,7 @@ def main():
 
     #  ########################################################################
     mode = 0
-
+    
     while True:
         fps = cvFpsCalc.get()
 
@@ -129,8 +128,6 @@ def main():
                 brect = calc_bounding_rect(debug_image, hand_landmarks)
                 # Landmark calculation
                 landmark_list = calc_landmark_list(debug_image, hand_landmarks)
-
-                print(landmark_list[0])
 
                 # Conversion to relative coordinates / normalized coordinates
                 pre_processed_landmark_list = pre_process_landmark(
@@ -184,11 +181,14 @@ def main():
 
 
 def select_mode(key, mode):
+    global row_index  # Declare the variable as global
     number = -1
     if 48 <= key <= 57:  # 0 ~ 9
         number = key - 48
     if 97 <= key <= 122:  # a ~ z
         number = key - 87  #
+    if key == 45:  # -
+        row_index = 0
     if key == 92:  # \
         mode = 0
     if key == 47:  # /
@@ -282,7 +282,12 @@ def pre_process_point_history(image, point_history):
     return temp_point_history
 
 
+# Initialize a counter outside the function
+row_index = 0
+
 def logging_csv(number, mode, landmark_list, point_history_list):
+    global row_index  # Declare the variable as global
+
     if mode == 0:
         pass
     if mode == 1 and (0 <= number <= 35):
@@ -290,11 +295,20 @@ def logging_csv(number, mode, landmark_list, point_history_list):
         with open(csv_path, 'a', newline="") as f:
             writer = csv.writer(f)
             writer.writerow([number, *landmark_list])
+            key_presssed = chr(number + 87)
+            if 0 <= number <= 9:  # 0 ~ 9
+                key_presssed = chr(number + 48)
+            if 10 <= number <= 35 :  # a ~ z
+                key_presssed = chr(number + 87) #
+            print(f"{key_presssed} at: {row_index}")
+            row_index += 1
     if mode == 2 and (0 <= number <= 9):
         csv_path = 'model/point_history_classifier/point_history.csv'
         with open(csv_path, 'a', newline="") as f:
             writer = csv.writer(f)
             writer.writerow([number, *point_history_list])
+            print(f"Row written at index: {row_index}")
+            row_index += 1
     return
 
 
