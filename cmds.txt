@@ -12,11 +12,12 @@ venv\Scripts\activate
 pip install -r req.txt
 
 // Windows 
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+venv\Scripts\activate
+python app_train.py
 
-python app.py
-
-// Train 
-train/Scripts/activate
+// Train jupyter
+train/Scripts/activate ( for harshit)
 pip install ipykernel
 ipython kernel install --user --name=train
 jupyter notebook
