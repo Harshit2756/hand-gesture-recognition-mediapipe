@@ -6,8 +6,13 @@ source myenv/bin/activate
 cd 'Final Project'
 source venv/bin/activate
 
-// Windows 
+// setup on new with python 3.8 version and 64 bit archi
+python -m venv venv
 venv\Scripts\activate
+pip install -r req.txt
+
+// Windows 
+
 python app.py
 
 // Train 
