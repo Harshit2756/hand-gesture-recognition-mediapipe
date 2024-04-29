@@ -1,6 +1,22 @@
 ssh Harshit@SignLangugae
 cd 'Final year project'
+/home/Harshit/Final year project/app_final.py
 source myenv/bin/activate
+
+///
+sudo nano /etc/rc.local
+
+#! /usr/bin/env python
+from subprocess import call
+call([‘espeak “Welcome to the world of Robots” 2>/dev/null’], shell=True)
+cd /home/Harshit/Final\ year\ project
+source myenv/bin/activate
+python app_final.py &
+
+sudo chmod +x /home/Harshit/Final\ year\ project/app_final.py
+sudo chmod -x /home/Harshit/Final\ year\ project/app_1.py
+
+sudo reboot
 
 // raspberry
 cd 'Final Project'
@@ -13,7 +29,7 @@ pip install -r req.txt
 
 // Windows 
 
-python app.py
+python app_train.py
 
 // Train 
 train/Scripts/activate
