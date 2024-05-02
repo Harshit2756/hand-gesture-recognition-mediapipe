@@ -4,6 +4,11 @@ cd 'Final year project'
 source myenv/bin/activate
 
 ///
+
+/home/Harshit/Final\ year\ project/myenv/bin/python app_final.py > /home/Harshit/Final\ year\ project/output.log 2>&1
+
+cat /home/Harshit/Final\ year\ project/output.log
+
 sudo nano /etc/rc.local
 
 #! /usr/bin/env python

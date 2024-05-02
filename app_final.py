@@ -36,114 +36,119 @@ def get_args():
 
 
 def main():
-    # Argument parsing #################################################################
-    args = get_args()
+    try: 
+        # Argument parsing #################################################################
+        args = get_args()
+        print('Hello welcome back')
+        SpeakText('Hello welcome back')
+        
+        cap_device = args.device
+        cap_width = args.width
+        cap_height = args.height
 
-    cap_device = args.device
-    cap_width = args.width
-    cap_height = args.height
+        use_static_image_mode = args.use_static_image_mode
+        min_detection_confidence = args.min_detection_confidence
+        min_tracking_confidence = args.min_tracking_confidence
 
-    use_static_image_mode = args.use_static_image_mode
-    min_detection_confidence = args.min_detection_confidence
-    min_tracking_confidence = args.min_tracking_confidence
+        # Camera preparation ###############################################################
+        cap = cv.VideoCapture(cap_device)
+        cap.set(cv.CAP_PROP_FRAME_WIDTH, cap_width)
+        cap.set(cv.CAP_PROP_FRAME_HEIGHT, cap_height)
 
-    # Camera preparation ###############################################################
-    cap = cv.VideoCapture(cap_device)
-    cap.set(cv.CAP_PROP_FRAME_WIDTH, cap_width)
-    cap.set(cv.CAP_PROP_FRAME_HEIGHT, cap_height)
+        # Model load 
+        mp_hands = mp.solutions.hands
+        hands = mp_hands.Hands(
+            static_image_mode=use_static_image_mode,
+            max_num_hands=1,
+            min_detection_confidence=min_detection_confidence,
+            min_tracking_confidence=min_tracking_confidence,
+        )
 
-    # Model load 
-    mp_hands = mp.solutions.hands
-    hands = mp_hands.Hands(
-        static_image_mode=use_static_image_mode,
-        max_num_hands=1,
-        min_detection_confidence=min_detection_confidence,
-        min_tracking_confidence=min_tracking_confidence,
-    )
+        keypoint_classifier = KeyPointClassifier()
 
-    keypoint_classifier = KeyPointClassifier()
+        point_history_classifier = PointHistoryClassifier()
 
-    point_history_classifier = PointHistoryClassifier()
+        # Read labels ###########################################################
+        with open('model/keypoint_classifier/keypoint_classifier_label.csv',
+                  encoding='utf-8-sig') as f:
+            keypoint_classifier_labels = csv.reader(f)
+            keypoint_classifier_labels = [
+                row[0] for row in keypoint_classifier_labels
+            ]
 
-    # Read labels ###########################################################
-    with open('model/keypoint_classifier/keypoint_classifier_label.csv',
-              encoding='utf-8-sig') as f:
-        keypoint_classifier_labels = csv.reader(f)
-        keypoint_classifier_labels = [
-            row[0] for row in keypoint_classifier_labels
-        ]
+        # Coordinate history #################################################################
+        history_length = 16
+        point_history = deque(maxlen=history_length)
 
-    # Coordinate history #################################################################
-    history_length = 16
-    point_history = deque(maxlen=history_length)
+        # Finger gesture history ################################################
+        finger_gesture_history = deque(maxlen=history_length)
 
-    # Finger gesture history ################################################
-    finger_gesture_history = deque(maxlen=history_length)
+        while True:
 
-    while True:
+            # Process Key (ESC: end) #################################################
+            key = cv.waitKey(10)
+            if key == 27:  # ESC
+                break
 
-        # Process Key (ESC: end) #################################################
-        key = cv.waitKey(10)
-        if key == 27:  # ESC
-            break
+            # Camera capture #####################################################
+            ret, image = cap.read()
+            if not ret:
+                break
+            image = cv.flip(image, 1)  # Mirror display
+            # image = cv.resize(image, (320, 240))
+            debug_image = copy.deepcopy(image)
 
-        # Camera capture #####################################################
-        ret, image = cap.read()
-        if not ret:
-            break
-        image = cv.flip(image, 1)  # Mirror display
-        # image = cv.resize(image, (320, 240))
-        debug_image = copy.deepcopy(image)
+            # Detection implementation #############################################################
+            image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
-        # Detection implementation #############################################################
-        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+            image.flags.writeable = False
+            results = hands.process(image)
+            image.flags.writeable = True
 
-        image.flags.writeable = False
-        results = hands.process(image)
-        image.flags.writeable = True
+            #  ####################################################################
+            if results.multi_hand_landmarks is not None:
+                for hand_landmarks, handedness in zip(results.multi_hand_landmarks,
+                                                      results.multi_handedness):
+                    # Landmark calculation
+                    landmark_list = calc_landmark_list(debug_image, hand_landmarks)
 
-        #  ####################################################################
-        if results.multi_hand_landmarks is not None:
-            for hand_landmarks, handedness in zip(results.multi_hand_landmarks,
-                                                  results.multi_handedness):
-                # Landmark calculation
-                landmark_list = calc_landmark_list(debug_image, hand_landmarks)
+                    # Conversion to relative coordinates / normalized coordinates
+                    pre_processed_landmark_list = pre_process_landmark(
+                        landmark_list)
+                    pre_processed_point_history_list = pre_process_point_history(
+                        debug_image, point_history)
 
-                # Conversion to relative coordinates / normalized coordinates
-                pre_processed_landmark_list = pre_process_landmark(
-                    landmark_list)
-                pre_processed_point_history_list = pre_process_point_history(
-                    debug_image, point_history)
+                    # Hand sign classification
+                    hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
+                    if hand_sign_id == 2:  # Point gesture
+                        point_history.append(landmark_list[8])
+                    else:
+                        point_history.append([0, 0])
 
-                # Hand sign classification
-                hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
-                if hand_sign_id == 2:  # Point gesture
-                    point_history.append(landmark_list[8])
-                else:
-                    point_history.append([0, 0])
+                    # Finger gesture classification
+                    finger_gesture_id = 0
+                    point_history_len = len(pre_processed_point_history_list)
+                    if point_history_len == (history_length * 2):
+                        finger_gesture_id = point_history_classifier(
+                            pre_processed_point_history_list)
 
-                # Finger gesture classification
-                finger_gesture_id = 0
-                point_history_len = len(pre_processed_point_history_list)
-                if point_history_len == (history_length * 2):
-                    finger_gesture_id = point_history_classifier(
-                        pre_processed_point_history_list)
+                    # Calculates the gesture IDs in the latest detection
+                    finger_gesture_history.append(finger_gesture_id)
+                    detected_sign = keypoint_classifier_labels[hand_sign_id] 
+                    print(detected_sign)
+                    SpeakText(detected_sign)
 
-                # Calculates the gesture IDs in the latest detection
-                finger_gesture_history.append(finger_gesture_id)
-                detected_sign = keypoint_classifier_labels[hand_sign_id] 
-                print(detected_sign)
-                SpeakText(detected_sign)
-
-        else:
-            point_history.append([0, 0])
+            else:
+                point_history.append([0, 0])
 
 
-        # Screen reflection window
-        # cv.imshow('Hand Gesture Recognition', debug_image)
+            # Screen reflection window
+            # cv.imshow('Hand Gesture Recognition', debug_image)
 
-    cap.release()
-    cv.destroyAllWindows()
+        cap.release()
+        cv.destroyAllWindows()
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def SpeakText(command):
     engine = pyttsx3.init()
