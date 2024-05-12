@@ -1,9 +1,9 @@
 ssh Harshit@SignLangugae
-cd 'Final year project'
-/home/Harshit/Final year project/app_final.py
-source myenv/bin/activate
 
-///
+cd 'Final year project'
+source myenv/bin/activate
+python app_final.py
+/home/Harshit/Final year project/app_final.py
 
 /home/Harshit/Final\ year\ project/myenv/bin/python app_final.py > /home/Harshit/Final\ year\ project/output.log 2>&1
 

@@ -4,6 +4,7 @@ import copy
 import argparse
 import itertools
 import pyttsx3
+import threading 
 from collections import deque
 
 import cv2 as cv
@@ -12,6 +13,30 @@ import mediapipe as mp
 from model import KeyPointClassifier
 from model import PointHistoryClassifier
 
+# class VideoCapture:
+#     def __init__(self, index):
+#         self.cap = cv.VideoCapture(index)
+#         self.ret = False
+#         self.frame = None
+#         self.is_running = True
+#         self.thread = threading.Thread(target=self.run, args=())
+#         self.thread.daemon = True
+#         self.thread.start()
+
+#     def run(self):
+#         while self.is_running:
+#             self.ret, self.frame = self.cap.read()
+
+#     def read(self):
+#         return self.ret, self.frame
+
+#     def release(self):
+#         self.is_running = False
+#         self.thread.join()  # Wait for the thread to finish
+#         self.cap.release()
+
+#     def set(self, prop_id, value):
+#         self.cap.set(prop_id, value)
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -34,7 +59,6 @@ def get_args():
 
     return args
 
-
 def main():
     try: 
         # Argument parsing #################################################################
@@ -51,6 +75,7 @@ def main():
         min_tracking_confidence = args.min_tracking_confidence
 
         # Camera preparation ###############################################################
+        # cap = VideoCapture(0)
         cap = cv.VideoCapture(cap_device)
         cap.set(cv.CAP_PROP_FRAME_WIDTH, cap_width)
         cap.set(cv.CAP_PROP_FRAME_HEIGHT, cap_height)
@@ -84,12 +109,6 @@ def main():
         finger_gesture_history = deque(maxlen=history_length)
 
         while True:
-
-            # Process Key (ESC: end) #################################################
-            key = cv.waitKey(10)
-            if key == 27:  # ESC
-                break
-
             # Camera capture #####################################################
             ret, image = cap.read()
             if not ret:
@@ -141,9 +160,10 @@ def main():
             else:
                 point_history.append([0, 0])
 
-
-            # Screen reflection window
-            # cv.imshow('Hand Gesture Recognition', debug_image)
+            # Process Key (ESC: end) #################################################
+            key = cv.waitKey(10)
+            if key == 27:  # ESC
+                break
 
         cap.release()
         cv.destroyAllWindows()
@@ -153,16 +173,11 @@ def main():
 def SpeakText(command):
     engine = pyttsx3.init()
     sound = engine.getProperty('voices')
-
-    for voice in sound:
-        print(voice.id)
     engine.setProperty("rate", 50)
     voice_ID=-1
     engine.setProperty("voice", sound[voice_ID].id)
     engine.say(command)
     engine.runAndWait()
-# frame = cv2.resize(frame, (320, 240))
-
 
 def calc_landmark_list(image, landmarks):
     image_width, image_height = image.shape[1], image.shape[0]
@@ -178,7 +193,6 @@ def calc_landmark_list(image, landmarks):
         landmark_point.append([landmark_x, landmark_y])
 
     return landmark_point
-
 
 def pre_process_landmark(landmark_list):
     temp_landmark_list = copy.deepcopy(landmark_list)
@@ -205,7 +219,6 @@ def pre_process_landmark(landmark_list):
     temp_landmark_list = list(map(normalize_, temp_landmark_list))
 
     return temp_landmark_list
-
 
 def pre_process_point_history(image, point_history):
     image_width, image_height = image.shape[1], image.shape[0]
