@@ -1,0 +1,160 @@
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+.\venv\Scripts\activate
+py app_train.py
+
+# Raspberry Pi Commands (Reference)
+# ssh Harshit@SignLangugae
+# cd 'Final year project'
+# source myenv/bin/activate
+# python app_final.py
+
+# Windows VSCode Setup for Sign Language Project
+
+# 1. Create Python Virtual Environment (Python 3.8 recommended)
+py -m venv venv
+
+# 2. Activate Virtual Environment
+# For Command Prompt:
+venv\Scripts\activate
+# For PowerShell:
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+# .\venv\Scripts\activate
+
+# 3. Install Required Packages
+pip install -r requirements.txt
+# If requirements.txt doesn't exist, create it with:
+# pip freeze > requirements.txt
+
+
+# 4. Run the Application
+py app_final.py
+
+# 5. For Debugging/Logging (Optional)
+# py app_final.py > output.log 2>&1
+# type output.log
+
+# 6. For Jupyter Notebook Setup (Optional)
+# pip install ipykernel
+# py -m ipykernel install --user --name=venv
+# jupyter notebook
+# To uninstall kernel: jupyter kernelspec uninstall venv
+
+# 7. VSCode Extensions Recommended
+# - Python
+# - Pylance
+# - Jupyter
+# - Python Test Explorer
+
+# 8. Package List Reference
+# Key packages needed:
+# - mediapipe==0.10.9
+# - numpy==1.24.4
+# - opencv-contrib-python==4.9.0.80
+# - matplotlib==3.7.5
+# - sounddevice==0.4.6
+
+# Full package list for reference:
+absl-py==2.1.0
+attrs==23.2.0
+cffi==1.16.0
+contourpy==1.1.1
+cycler==0.12.1
+flatbuffers==20181003210633
+fonttools==4.51.0
+importlib_resources==6.4.0
+kiwisolver==1.4.5
+matplotlib==3.7.5
+mediapipe==0.10.9
+numpy==1.24.4
+opencv-contrib-python==4.9.0.80
+packaging==24.0
+pillow==10.3.0
+protobuf==3.20.3
+pycparser==2.22
+pyparsing==3.1.2
+python-dateutil==2.9.0.post0
+six==1.16.0
+sounddevice==0.4.6
+zipp==3.18.1
+
+# Voice Options (for text-to-speech if used)
+# Note: On Windows, you'll need to use a different TTS system
+# Consider using pyttsx3 or the Windows SAPI
+# pip install pyttsx3
+#
+# Sample voice options reference:
+afrikaans
+aragonese
+bulgarian
+bengali
+bosnian
+catalan
+czech
+welsh
+danish
+german
+greek
+default
+english
+en-scottish
+english-north
+english_rp
+english_wmids
+english-us
+en-westindies
+esperanto
+spanish
+spanish-latin-am
+estonian
+basque-test
+Persian+English-UK
+Persian+English-US
+persian-pinglish
+finnish
+french-Belgium
+french
+irish-gaeilge
+greek-ancient
+gujarati-test
+hindi
+croatian
+hungarian
+armenian
+armenian-west
+interlingua
+indonesian
+icelandic
+italian
+lojban
+georgian
+kannada
+kurdish
+latin
+lingua_franca_nova
+lithuanian
+latvian
+macedonian
+malayalam
+malay
+nepali
+dutch
+norwegian
+punjabi
+polish
+brazil
+portugal
+romanian
+russian
+slovak
+albanian
+serbian
+swedish
+swahili-test
+tamil
+telugu-test
+turkish
+vietnam
+vietnam_hue
+vietnam_sgn
+Mandarin
+cantonese
