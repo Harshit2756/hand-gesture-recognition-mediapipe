@@ -1,9 +1,7 @@
 # hand-gesture-recognition-using-mediapipe
-Estimate hand pose using MediaPipe (Python version).<br> This is a sample 
-program that recognizes hand signs and finger gestures with a simple MLP using the detected key points.
+Estimate hand pose using MediaPipe (Python version).<br> This is a sample program that recognizes hand signs and finger gestures with a simple MLP using the detected key points.
 
-<br> 
-![mqlrf-s6x16](https://user-images.githubusercontent.com/37477845/102222442-c452cd00-3f26-11eb-93ec-c387c98231be.gif)
+or detail understanding of the working of the code please refer to the [notes](notes.md) file.
 
 This repository contains the following contents.
 * Sample program
@@ -11,6 +9,10 @@ This repository contains the following contents.
 * Finger gesture recognition model(TFLite)
 * Learning data for hand sign recognition and notebook for learning
 * Learning data for finger gesture recognition and notebook for learning
+
+# sign language to text
+
+![signs](signs.jpg)
 
 # Requirements
 * mediapipe 0.8.1
@@ -139,4 +141,6 @@ The model using "LSTM" is as follows. <br>Please change "use_lstm = False" to "T
 
 # Reference
 * [MediaPipe](https://mediapipe.dev/)
+
+
 
